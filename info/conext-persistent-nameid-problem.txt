@@ -1,0 +1,49 @@
+SURFconext Persistent NameID problem
+====================================
+Date: 2011/dec/30
+
+At the time of publishing the Proof of Concept, there was a problem with
+the persistent NameID format as well as with the unspecified NameID format.
+The problem with unspecified NameID format, is that it contains characters
+(i.e. ':'-characters) that are not allowed in the userId of a Wordpress user.
+Mapping is mostly going well, but not everywhere. So, the persistent
+NameID format is preferred.
+
+But, when using the Persisitent NameID format, the following situation arises:
+ 
+Whenever a Service Provider is configured in EngineBlock, its default settings
+ensure that it will receive a persistent NameID in response to an
+Authentication Request. The persistent NameID is unique for the SP.
+
+If the Service Provider wants to make a request to Shindig/OpenSocial, it
+can use the provided NameID as user_id, to identify the user on behalf of
+whom the request must be executed.
+
+There is a problem with this situation:
+  - The NameID in persistent format is returned correctly
+  - The OpenSocial-request is sent correctly
+  - The Shindig-container returns an HTTP 500 error when
+    the request is executed:
+    
+---
+message: Exception in getGroups(userId='96a0120a9c0e2e5b1a5b04957b0c955051c6e933')
+description: The server encountered an internal error (Exception in getGroups(userId='96a0120a9c0e2e5b1a5b04957b0c955051c6e933')) that prevented it from fulfilling this request.
+---
+    
+More context:
+  - When the request is done with the NameID in unspecified format,
+    the Shindig-container executes the request correctly
+    
+  - When OpenSocial asks the user for consent, the correct translated
+    'urn:collab:...' identifier is resolved from the request that
+    used the persistent NameID as user_id parameter
+    
+    
+    
+ === Solution:
+ For now, the Unspecified NameID-format of the UserID is also provided
+ in an attribute: 'urn:oid:1.3.6.1.4.1.1076.20.40.40.1'
+ The workaround is, that the value from this attribute (this is the URN-
+ identifier) is used as value for user_id in calls to OpenSocial.
+ This works.
+ 

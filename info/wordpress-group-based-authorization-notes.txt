@@ -1,0 +1,100 @@
+Technical Design considerations for Group Authorization in WordPress
+--------------------------------------------------------------------
+Using WordPress 3.3
+Dec, 2011
+
+
+Documentation of technical design WordPress group-based authorization after
+reading http://codex.wordpress.org/Writing_a_Plugin
+
+
+* Create a plugin called 'conext-authorization'
+* Plugin consists of conext-authorization.php (CnxAuthz) and directory with 
+  all relevant libraries (grouprel)
+* Plugin (CnxAuthz) must hook into a WordPress hook; candidates could be:
+  - <FIGURE OUT LATER WHEN LIST OF HOOKS IS FOUND>
+  List of hooks ==> http://adambrown.info/p/wp_hooks
+  Candidates are:
+  use 'wp_authenticate' for authentication, and
+  use 'wp_login' for authorization
+  
+  
+* Whenever user interaction is performed, Internationalization should be
+  supported; initially, everything is planned to run in the background except
+  the admin stuff, which will be fixed in the english language (...)
+
+
+* Suggestion: implement action handler in (static) class method
+   to perform namespacing of functions in our own context; 
+   classname should be:
+   class SURFconext_Authorization() { ... }
+   // non-static member:
+   $surfConextAuthorizer = new SURFconext_Authorization($...configuration...);
+   add_action('<some-action>', array($surfConextAuthorizer, 'non-staticmember'));
+   // or with static member:
+   add_action('<some-action>', array('SURFconext_Authorization', 'staticmember'));
+    
+    
+* Suggestion: Let plugin-configuration be handled by WordPress UI
+  or through register_activation_hook/register_deactivation_hook?
+  
+
+
+===== looking at SimpleSAMLphp Authentication Plugin:
+- Hooks into multiple WP hooks
+- performs default provisioning by trying to establish these attributes
+  from the authentication result and pass them in an array to wp_insert_user() : 
+  user_login: the login-name of the user
+  user_pass: some password; irrelevant when externally authenticated
+  user_email: email-address of the user
+  first_name: first-name of a user
+  last_name: last-name of a user
+  role: authorization-role applied to a user
+  
+Questions: 
+- can role contain only ONE role?
+  -> wordpress is pretty much based on using one role for a user, so 
+     stick to one role
+- are authorization-roles fixed/predetermined?
+  -> no, see Wordpress capabilities documentation
+
+Answers with regard to roles in WordPress:
+Documented:
+* http://codex.wordpress.org/Roles_and_Capabilities
+
+There are 6 incremental, pre-configured roles available in WordPress:
+
+'Subscriber' = 'read'
+'Contributor' = 'Subscriber' + edit/delete
+'Author' = 'Contributor' + publish/edit/upload
+'Editor' = 'Author' + other-peoples-posts:publish/edit/upload/etc
+'Administrator' = 'Editor' + site management capabilities
+'SuperAdmin' = 'Administrator' + multisite/blognetwork management caps
+
+Technical/Source documentation:
+* http://phpdoc.wordpress.org/trunk/WordPress/User/_wp-includes---capabilities.php.html
+* http://phpdoc.wordpress.org/trunk/WordPress/User/WP_Roles.html
+
+
+====> So; What to implement? <====
+Authorization based on (external) group provider performs:
+- Group that assigns 'Administrator'-role, or else:
+- Group that assigns 'Editor'-role, or else
+- Group that assigns 'Author'-role, or else
+- Group that assigns 'Contributor'-role, or else
+User is assigned 'Subscriber'-role
+
+
+
+====> How to implement this? <====
+
+1. Extend authentication with Group-retrieval functionality
+2. Implement Group-retrieval functionality with role-assignment support
+2. Create UI to configure group-to-role mappings
+
+
+
+Coding style: follow WordPress Coding Standards:
+http://codex.wordpress.org/WordPress_Coding_Standards
+
+ 

@@ -1,0 +1,20 @@
+exp34.conext
+
+MySQL settings
+===========================================================================
+mysql> create database wordpress;
+Query OK, 1 row affected (0.00 sec)
+
+mysql> CREATE USER 'wordpress_user'@'localhost' IDENTIFIED BY 'w22w22p#';
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> GRANT ALL PRIVILEGES ON wordpress.* TO 'wordpress_user'@'localhost';
+Query OK, 0 rows affected (0.00 sec)
+
+mysql> FLUSH PRIVILEGES;
+Query OK, 0 rows affected (0.00 sec)
+
+
+WordPress settings
+===========================================================================
+admin:veryverysecret
