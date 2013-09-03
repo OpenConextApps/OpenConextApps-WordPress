@@ -26,10 +26,16 @@ Author URI: http://www.cs.tcd.ie/David.OCallaghan/
 
  */
 
+//Check if Wordpress install is Multisite or not. If Multisite display SimpleSAML Authentication menu in Network Admin Dashboard.
+if (is_multisite()){
+add_action('network_admin_menu', 'simplesaml_authentication_add_menu_page');
+}
 
+else {
 add_action('admin_menu', 'simplesaml_authentication_add_options_page');
+}
 
-$simplesaml_authentication_opt = get_option('simplesaml_authentication_options');
+$simplesaml_authentication_opt = get_site_option('simplesaml_authentication_options');
 
 $simplesaml_configured = true;
 
@@ -262,10 +268,17 @@ if(!class_exists('SimpleSAMLAuthenticator')) {
 //----------------------------------------------------------------------------
 
 function simplesaml_authentication_add_options_page() {
-	if (function_exists('add_options_page')) {
-		add_options_page('simpleSAMLphp Authentication', 'simpleSAMLphp Authentication', 'manage_options',
-			basename(__FILE__), 'simplesaml_authentication_options_page');
-	}
+        if (function_exists('add_options_page')) {
+                add_options_page('simpleSAMLphp Authentication', 'simpleSAMLphp Authentication', 8,
+                        basename(__FILE__), 'simplesaml_authentication_options_page');
+        }
+}
+
+function simplesaml_authentication_add_menu_page() {
+        if (function_exists('add_menu_page')) {
+                add_menu_page('simpleSAMLphp Authentication', 'simpleSAMLphp Authentication', 'manage_options',
+                        basename(__FILE__), 'simplesaml_authentication_options_page');
+        }
 }
 
 function simplesaml_authentication_options_page() {
@@ -294,11 +307,11 @@ function simplesaml_authentication_options_page() {
 			$options_updated[$key] = isset($_POST[$key]) ? $_POST[$key] : $options[$key];
 		}
 
-		update_option('simplesaml_authentication_options', $options_updated);
+		update_site_option('simplesaml_authentication_options', $options_updated);
 	}
   
 	// Get Options
-	$options = get_option('simplesaml_authentication_options');
+	$options = get_site_option('simplesaml_authentication_options');
   
 ?>
 
