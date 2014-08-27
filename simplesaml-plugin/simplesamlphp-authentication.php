@@ -152,7 +152,7 @@ if(!class_exists('SimpleSAMLAuthenticator')) {
 			}
 			// Reset value from input ($_POST and $_COOKIE)
 			$username = '';
-			$as->requireAuth();
+			$as->requireAuth(array('ReturnTo' => wp_login_url(wp_make_link_relative($_REQUEST["redirect_to"]), false)));
 			$attributes = $as->getAttributes();
 			if(empty($simplesaml_authentication_opt['username_attribute'])) {
 				$username = $attributes['uid'][0];
