@@ -28,15 +28,14 @@ Author URI: http://www.cs.tcd.ie/David.OCallaghan/
 
 //Check if Wordpress install is Multisite or not. If Multisite display SimpleSAML Authentication menu in Network Admin Dashboard.
 if (is_multisite()){
-add_action('network_admin_menu', 'simplesaml_authentication_add_menu_page');
+	add_action('network_admin_menu', 'simplesaml_authentication_add_menu_page');
 }
 
 else {
-add_action('admin_menu', 'simplesaml_authentication_add_options_page');
+	add_action('admin_menu', 'simplesaml_authentication_add_options_page');
 }
 
 $simplesaml_authentication_opt = get_site_option('simplesaml_authentication_options');
-
 $simplesaml_configured = true;
 
 // Try to configure the simpleSAMLphp client
@@ -55,7 +54,6 @@ if ($simplesaml_configured) {
 }
 
 
-
 /*
 	Plugin hooks into authentication system
 */
@@ -64,7 +62,10 @@ add_action('wp_logout', array('SimpleSAMLAuthenticator', 'logout'));
 add_action('lost_password', array('SimpleSAMLAuthenticator', 'disable_function'));
 add_action('retrieve_password', array('SimpleSAMLAuthenticator', 'disable_function'));
 add_action('password_reset',array('SimpleSAMLAuthenticator', 'disable_function'));
-add_filter('show_password_fields', array('SimpleSAMLAuthenticator', 'show_password_fields'));
+
+
+//add_action('register_new_user',array('SimpleSAMLAuthenticator', 'disable_function'));
+add_filter('show_password_fields', array('SimpleSAMLAuthenticator', ''));
 
 
 // Version logic
@@ -107,38 +108,6 @@ function invalidate_password($ID) {
 	);
 }
 
-$slo = $simplesaml_authentication_opt['slo'];
-if ($slo) {
-	/*
-	 Log the user out from WordPress if the simpleSAMLphp SP session is gone.
-	 This function overrides the is_logged_in function from wp core.
-	 (Another solution could be to extend the wp_validate_auth_cookie func instead).
-	*/
-	function is_user_logged_in() {
-		global $as;
-
-		$user = wp_get_current_user();
-		if ( $user->ID > 0 ) {
-			// User is local authenticated but SP session was closed
-			if (!isset($as)) {
-				global $simplesaml_authentication_opt;
-				$sp_auth = ($simplesaml_authentication_opt['sp_auth'] == '') ? 'default-sp' : $simplesaml_authentication_opt['sp_auth'];
-				$as = new SimpleSAML_Auth_Simple($sp_auth);
-			}
-			
-			if(!$as->isAuthenticated()) {
-				wp_logout();
-				return false;
-			} else {
-				return true;
-			}
-		}
-		return false;
-	}
-}
-
-
-
 if(!class_exists('SimpleSAMLAuthenticator')) {
 
 	class SimpleSAMLAuthenticator {
@@ -147,16 +116,21 @@ if(!class_exists('SimpleSAMLAuthenticator')) {
 			if(is_a($user, 'WP_User')) { return $user; }
 			
 			global $simplesaml_authentication_opt, $simplesaml_configured, $as;
+			
 			if (!$simplesaml_configured) {
 				die("simplesaml-authentication plugin not configured");
 			}
+			
 			// Reset value from input ($_POST and $_COOKIE)
 			$username = '';
 			$as->requireAuth(array('ReturnTo' => wp_login_url(wp_make_link_relative($_REQUEST["redirect_to"]), false)));
 			$attributes = $as->getAttributes();
+			
 			if(empty($simplesaml_authentication_opt['username_attribute'])) {
 				$username = $attributes['uid'][0];
-			} else {
+			} 
+			
+			else {
 				$username = $attributes[$simplesaml_authentication_opt['username_attribute']][0];
 			}
 			
@@ -176,10 +150,53 @@ if(!class_exists('SimpleSAMLAuthenticator')) {
 			#exit;
 			if ($user) {
 				// user already exists
+				
+				if ($simplesaml_authentication_opt['uua'] == 1) {
+				// if update user attributes is enabled.
+				
+				$user_email = '';
+					$email_attribute = empty($simplesaml_authentication_opt['email_attribute']) ? 'mail' : $simplesaml_authentication_opt['email_attribute'];
+						
+					if($attributes[$email_attribute][0]) {
+						// Try to get email address from attribute
+						$user_email = $attributes[$email_attribute][0];
+					} else {
+						// Otherwise use default email suffix
+						if ($simplesaml_authentication_opt['email_suffix'] != '') {
+							$user_email = $username . '@' . $simplesaml_authentication_opt['email_suffix'];
+						}
+					}
+				
+				$user_info = array();
+				$user_info['ID'] = $user->ID;
+				$user_info['user_email'] = $user_email;
+					
+				if(empty($simplesaml_authentication_opt['firstname_attribute'])) {
+						$user_info['first_name'] = $attributes['givenName'][0];
+				} 
+				
+				else {
+						$user_info['first_name'] = $attributes[$simplesaml_authentication_opt['firstname_attribute']][0];
+				}
+					
+				if(empty($simplesaml_authentication_opt['lastname_attribute'])) {
+						$user_info['last_name'] = $attributes['sn'][0];
+				} 
+				
+				else {
+						$user_info['last_name'] = $attributes[$simplesaml_authentication_opt['lastname_attribute']][0];
+				}
+
+				wp_update_user($user_info);
+				}
 				return $user;
-			} else {
-				// First time logging in
+			} 
+			
+			else {
+			// First time logging in
+				
 				#var_dump('asdfasdf');
+				
 				if ($simplesaml_authentication_opt['new_user'] == 1) {
 					// Auto-registration is enabled
 					// User is not in the WordPress database
@@ -223,14 +240,18 @@ if(!class_exists('SimpleSAMLAuthenticator')) {
 						in_array($simplesaml_authentication_opt['admin_entitlement'],
 						$attributes['eduPersonEntitlement'])) {
 						$user_info['role'] = "administrator";
-					} else {
+					} 
+					
+					else {
 						$user_info['role'] = $simplesaml_authentication_opt['default_role'];
 					}
 					
 					$wp_uid = wp_insert_user($user_info);
 					invalidate_password($wp_uid);
 					return get_user_by('login', $username);
-				} else {
+				} 
+				
+				else {
 					$error = sprintf(__('<p><strong>ERROR</strong>: %s is not registered with this blog.
 						Please contact the <a href="mailto:%s">blog administrator</a> to create a new
 						account!</p>'), $username, get_option('admin_email'));
@@ -276,8 +297,11 @@ function simplesaml_authentication_add_options_page() {
 
 function simplesaml_authentication_add_menu_page() {
         if (function_exists('add_menu_page')) {
+                
+                if ( is_super_admin() ){
+                
                 add_menu_page('simpleSAMLphp Authentication', 'simpleSAMLphp Authentication', 'manage_options',
-                        basename(__FILE__), 'simplesaml_authentication_options_page');
+                       basename(__FILE__), 'simplesaml_authentication_options_page');}
         }
 }
 
@@ -288,6 +312,7 @@ function simplesaml_authentication_options_page() {
 	$options = array(
 		'new_user' => FALSE,
 		'slo' => FALSE,
+		'uua' => FALSE,
 		'redirect_url' => '',
 		'email_suffix' => 'example.com',
 		'sp_auth' => 'default-sp',
@@ -334,14 +359,7 @@ function simplesaml_authentication_options_page() {
 		<span class="setting-description">The default WordPress role for new users (e.g. author or subscriber).</span>
 		</td>
 	</tr>
-	<!--
-	<tr>
-	<th><label for="email_suffix"> Default email domain</label></th>
-	<td>
-	<input type="text" name="email_suffix" id="email_suffix_inp" value="<?php echo $options['email_suffix']; ?>" size="35" />
-	<span class="setting-description">If an email address is not availble from the <acronym title="Identity Provider">IdP</acronym> <strong>username@domain</strong> will be used.</td>
-	</tr>
-	-->
+	
 	<tr>
 		<th><label for="admin_entitlement">Administrator Entitlement URI</label></th>
 		<td><input type="text" name="admin_entitlement" id="admin_entitlement_inp" value="<?php echo $options['admin_entitlement']; ?>" size="40" />
@@ -397,17 +415,17 @@ function simplesaml_authentication_options_page() {
 	</tr>
 
 	<tr valign="top">
-		<th scope="row"><label for="slo">Single Log Out</label></th>
-		<td><input type="checkbox" name="slo" id="slo" value="1" <?php checked('1', $options['slo']); ?> />
-		<span class="setting-description">Enable Single Log Out</span>
+		<th scope="row"><label for="uua">Managed Profile</label></th>
+		<td><input type="checkbox" name="uua" id="uua" value="1" <?php checked('1', $options['uua']); ?> />
+		<span class="setting-description">Managed profile fields.</span>
 		</td>
 	</tr>
 </table>
+<p><em>Note:</em> Managed profile fields are updated each time the user logs in using the current data provided by simpleSAMLphp. Additionally, users will be prevented from manually updating these fields from within WordPress. Note that simpleSAMLphp data is always used to populate the user profile during initial account creation.</p>
 </fieldset>
-<div class="submit">
-	<input type="submit" name="submit" value="<?php _e('Update Options') ?> &raquo;" />
-</div>
+<?php submit_button(); ?>
 </form>
+
 <?php
 }
 ?>
